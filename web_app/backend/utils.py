@@ -50,7 +50,8 @@ class Predictor:
     def _get_core_engine(self):
         if self.core_model is None:
             print(f"Loading Core Engine: {self.core_model_name}...")
-            self.core_tokenizer = AutoTokenizer.from_pretrained(self.core_model_name)
+            # use_fast=False is safer for DeBERTa-v3 on some server environments
+            self.core_tokenizer = AutoTokenizer.from_pretrained(self.core_model_name, use_fast=False)
             self.core_model = TransformerClassifier(self.core_model_name)
             # Load the trained weights from deberta.pt
             self.core_model.load_state_dict(torch.load(f"{self.models_dir}/deberta.pt", map_location=self.device))
