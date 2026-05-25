@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
@@ -52,18 +53,34 @@ const App: React.FC = () => {
     if (!inputText.trim()) return;
     setLoading(true);
     setResult(null);
+    setError(null);
     try {
       const res = await fetch(`${API_BASE_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: inputText, model: 'deberta' }),
       });
+      
       const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.detail || 'Neural processing failed');
+      }
+
+      if (!data.fake_news || !data.ai_detection) {
+        throw new Error('Malformed response from neural node');
+      }
+
       setResult(data);
       setTimeout(() => {
         document.getElementById('result-target')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 400);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e: any) { 
+      console.error(e);
+      setError(e.message || 'An unexpected connection error occurred');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const analysisCards = [
@@ -163,7 +180,14 @@ const App: React.FC = () => {
               <motion.div className="result-box" initial={{ opacity: 0, x: 80 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8, type: "spring", damping: 15 }}>
                 <div id="result-target" />
                 <AnimatePresence mode="wait">
-                  {result ? (
+                  {error ? (
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="error-display glass-card">
+                      <ShieldAlert size={50} color="#ff4444" />
+                      <h3>Neural Link Failure</h3>
+                      <p>{error}</p>
+                      <button onClick={() => setError(null)} className="retry-btn">RESET_PROTOCOL</button>
+                    </motion.div>
+                  ) : result ? (
                     <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} className="result-display">
                       <motion.div {...tiltProps} className={`res-item ${result.fake_news.prediction.toLowerCase()}`}>
                         <div className="res-tag-badge">VERACITY ANALYSIS</div>
