@@ -8,7 +8,8 @@ import {
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValue, useTransform } from 'framer-motion';
 import NeuralScene from './components/NeuralScene';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Sanitize URL: remove trailing slash if exists
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 interface PredictionResult {
   fake_news: { prediction: 'Real' | 'Fake'; confidence: number; model: string; };
