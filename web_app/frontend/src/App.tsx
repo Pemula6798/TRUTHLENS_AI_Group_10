@@ -29,7 +29,8 @@ const SplashScreen = () => (
 );
 
 const App: React.FC = () => {
-  const [inputText, setInputText] = useState('');
+  const [inputTitle, setInputTitle] = useState('');
+  const [inputContent, setInputContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,10 @@ const App: React.FC = () => {
   }, []);
 
   const handlePredict = async () => {
-    if (!inputText.trim()) return;
+    if (!inputTitle.trim() || !inputContent.trim()) {
+      setError("Please fill in both title and content for accurate analysis.");
+      return;
+    }
     console.log("Starting scan... Target URL:", API_BASE_URL);
     setLoading(true);
     setResult(null);
@@ -60,7 +64,11 @@ const App: React.FC = () => {
       const res = await fetch(`${API_BASE_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: inputText, model: 'deberta' }),
+        body: JSON.stringify({ 
+          title: inputTitle,
+          text: inputContent, 
+          model: 'deberta' 
+        }),
       });
       
       console.log("Response received. Status:", res.status);
@@ -69,11 +77,6 @@ const App: React.FC = () => {
       
       if (!res.ok) {
         throw new Error(data.detail || `Server error: ${res.status}`);
-      }
-
-      if (!data.fake_news || !data.ai_detection) {
-        console.error("Invalid data structure:", data);
-        throw new Error('Malformed response from neural node');
       }
 
       setResult(data);
@@ -166,11 +169,27 @@ const App: React.FC = () => {
                 transition={{ duration: 0.8, type: "spring", damping: 15 }}
               >
                 <div className="card-header"><Terminal size={14} /> <span>INPUT_STREAM_RAW</span></div>
-                <textarea 
-                  placeholder="Paste news content here for deep analysis... (Note: Model optimized for political news context)" 
-                  value={inputText} 
-                  onChange={e=>setInputText(e.target.value)} 
-                />
+                
+                <div className="input-group-modern">
+                  <label><Newspaper size={12} /> ARTICLE_TITLE</label>
+                  <input 
+                    type="text"
+                    placeholder="Enter headline here..."
+                    value={inputTitle}
+                    onChange={e=>setInputTitle(e.target.value)}
+                    className="title-input-field"
+                  />
+                </div>
+
+                <div className="input-group-modern" style={{ marginTop: '20px' }}>
+                  <label><Terminal size={12} /> ARTICLE_CONTENT</label>
+                  <textarea 
+                    placeholder="Paste news content here for deep analysis... (Note: Model optimized for political news context)" 
+                    value={inputContent} 
+                    onChange={e=>setInputContent(e.target.value)} 
+                  />
+                </div>
+
                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <Info size={12} />
                   <span>Disclaimer: Training data is primarily focused on political issues. Results may vary for other topics.</span>
@@ -178,7 +197,7 @@ const App: React.FC = () => {
                 <div className="engine-select">
                   <label>ACTIVE NEURAL ARCHITECTURE: DEBERTA-V3 TRANSFORMER</label>
                 </div>
-                <button className="scan-btn" onClick={handlePredict} disabled={loading||!inputText.trim()}>
+                <button className="scan-btn" onClick={handlePredict} disabled={loading||!inputTitle.trim()||!inputContent.trim()}>
                   {loading ? <Loader2 className="spin"/> : <><Zap size={18}/> EXECUTE NEURAL SCAN</>}
                 </button>
               </motion.div>

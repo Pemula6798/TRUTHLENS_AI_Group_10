@@ -39,6 +39,7 @@ if os.path.exists("web_app/backend/static/frontend"):
 
 
 class NewsRequest(BaseModel):
+    title: str = ""
     text: str
     model: str = "deberta"
 
@@ -55,7 +56,7 @@ def predict_news(request: NewsRequest):
         raise HTTPException(status_code=400, detail=f"Model {request.model} not available. Choose from {predictor.available_models}")
     
     try:
-        result = predictor.predict(request.text, request.model)
+        result = predictor.predict(request.text, request.model, title=request.title)
         return result
     except Exception as e:
         import traceback

@@ -40,17 +40,22 @@ class Predictor:
         self.tokenizers = {}
         self.vocabs = {}
         
-        # Core Engine: DeBERTa-v3
+        # Core Engine: DeBERTa-v3 (Fake/Real)
         self.core_model_name = "microsoft/deberta-v3-base"
         self.core_model = None
         self.core_tokenizer = None
+
+        # Origin Engine: AI Detection (Separate Model for better accuracy)
+        self.ai_model_name = "Hello-SimpleAI/chatgpt-detector-roberta"
+        self.ai_model = None
+        self.ai_tokenizer = None
 
         # Configs from notebook
         self.cfg_bilstm = dict(vocab_size=50_000, embed_dim=300, hidden_dim=256, n_layers=2, dropout=0.3, max_len=300)
 
     def _get_core_engine(self):
         if self.core_model is None:
-            print(f"Loading Core Engine: {self.core_model_name}...")
+            print(f"Loading Veracity Engine: {self.core_model_name}...")
             # Load tokenizer from local path to bypass download/parsing errors
             tok_path = f"{self.models_dir}/deberta_tokenizer"
             if os.path.exists(tok_path):
@@ -59,10 +64,17 @@ class Predictor:
                 self.core_tokenizer = AutoTokenizer.from_pretrained(self.core_model_name, use_fast=False)
                 
             self.core_model = TransformerClassifier(self.core_model_name)
-            # Load the trained weights from deberta.pt
             self.core_model.load_state_dict(torch.load(f"{self.models_dir}/deberta.pt", map_location=self.device))
             self.core_model.to(self.device).eval()
         return self.core_model, self.core_tokenizer
+
+    def _get_ai_engine(self):
+        if self.ai_model is None:
+            print(f"Loading Origin Engine: {self.ai_model_name}...")
+            self.ai_tokenizer = AutoTokenizer.from_pretrained(self.ai_model_name)
+            self.ai_model = TransformerClassifier(self.ai_model_name)
+            self.ai_model.to(self.device).eval()
+        return self.ai_model, self.ai_tokenizer
 
     def _get_model(self, model_type):
         if model_type == 'deberta':
@@ -96,44 +108,49 @@ class Predictor:
             self.tokenizers[model_type] = tokenizer
             return model, tokenizer
 
-    def predict(self, text, model_type='deberta'):
-        # Force deberta if requested by user for AI too
-        model, processor = self._get_model('deberta' if model_type == 'deberta' else model_type)
+    def predict(self, text, model_type='deberta', title=''):
+        # 1. Veracity Prediction (Fake/Real)
+        v_model, v_processor = self._get_model(model_type)
+        
+        # Combine title and text if title is provided
+        full_text = f"{title} [SEP] {text}" if title else text
         
         with torch.no_grad():
-            if model_type == 'bilstm' and not model_type == 'deberta':
-                cleaned = clean_text(text, lower=True)
-                inputs = tokenize_bilstm(cleaned, processor, self.cfg_bilstm['max_len']).to(self.device)
-                logits = model(inputs)
+            if model_type == 'bilstm':
+                cleaned = clean_text(full_text, lower=True)
+                inputs = tokenize_bilstm(cleaned, v_processor, self.cfg_bilstm['max_len']).to(self.device)
+                logits = v_model(inputs)
             else:
-                cleaned = clean_text(text, lower=False)
-                inputs = processor(cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
-                logits = model(**inputs)
+                cleaned = clean_text(full_text, lower=False)
+                inputs = v_processor(cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
+                logits = v_model(**inputs)
             
             probs = torch.softmax(logits, dim=1)
-            conf, pred = torch.max(probs, dim=1)
+            v_conf, v_pred = torch.max(probs, dim=1)
+            fake_news_pred = 'Real' if v_pred.item() == 1 else 'Fake'
 
-        # Unified Output using DeBERTa-v3 logic
-        # For Fake News: label 1=Real, 0=Fake
-        # For AI Detection: The model detects "Fake" patterns often associated with AI
-        # We use a heuristic: high fake confidence correlates with AI generation markers in the trained dataset
-        
-        fake_news_pred = 'Real' if pred.item() == 1 else 'Fake'
-        
-        # Heuristic for AI: If predicted Fake, high probability it's AI (as AI data was Fake in training)
-        # If Real, likely Human.
-        ai_pred = 'Human' if fake_news_pred == 'Real' else 'AI Generated'
-        ai_conf = round(conf.item() * 100, 2)
+        # 2. Origin Prediction (Human/AI)
+        ai_model, ai_processor = self._get_ai_engine()
+        with torch.no_grad():
+            # Use original text (content only) for AI detection as it's often more reliable
+            ai_cleaned = clean_text(text, lower=False)
+            ai_inputs = ai_processor(ai_cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
+            ai_logits = ai_model(**ai_inputs)
+            ai_probs = torch.softmax(ai_logits, dim=1)
+            ai_conf_val, ai_pred_idx = torch.max(ai_probs, dim=1)
+            
+            # Map based on chatgpt-detector-roberta labels: 0=Human, 1=ChatGPT/AI
+            ai_pred = 'Human' if ai_pred_idx.item() == 0 else 'AI Generated'
 
         return {
             'fake_news': {
                 'prediction': fake_news_pred,
-                'confidence': round(conf.item() * 100, 2),
-                'model': 'deberta-v3'
+                'confidence': round(v_conf.item() * 100, 2),
+                'model': model_type
             },
             'ai_detection': {
                 'prediction': ai_pred,
-                'confidence': ai_conf,
-                'model': 'deberta-v3'
+                'confidence': round(ai_conf_val.item() * 100, 2),
+                'model': 'chatgpt-detector'
             }
         }
