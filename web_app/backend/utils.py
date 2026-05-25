@@ -40,10 +40,15 @@ class Predictor:
         self.tokenizers = {}
         self.vocabs = {}
         
-        # Core Engine: Bi-LSTM (The most accurate in training: 96%)
-        self.core_model_name = "bilstm"
+        # Core Engine: DeBERTa-v3 (Reverted per user request)
+        self.core_model_name = "microsoft/deberta-v3-base"
         self.core_model = None
         self.core_tokenizer = None
+
+        # Origin Engine: AI Detection (Keep separate for accuracy)
+        self.ai_model_name = "Hello-SimpleAI/chatgpt-detector-roberta"
+        self.ai_model = None
+        self.ai_tokenizer = None
 
         # Configs from notebook
         self.cfg_bilstm = dict(vocab_size=50_000, embed_dim=300, hidden_dim=256, n_layers=2, dropout=0.3, max_len=300)
@@ -51,14 +56,16 @@ class Predictor:
     def _get_core_engine(self):
         if self.core_model is None:
             print(f"Loading Veracity Engine: {self.core_model_name}...")
-            # Load Bi-LSTM components
-            vocab = load_bilstm_vocab(f"{self.models_dir}/bilstm_vocab.pkl")
-            model_params = {k: v for k, v in self.cfg_bilstm.items() if k != 'max_len'}
-            model = BiLSTMClassifier(**model_params)
-            model.load_state_dict(torch.load(f"{self.models_dir}/bilstm.pt", map_location=self.device))
-            model.to(self.device).eval()
-            self.core_model = model
-            self.core_tokenizer = vocab
+            # Load tokenizer from local path to bypass download/parsing errors
+            tok_path = f"{self.models_dir}/deberta_tokenizer"
+            if os.path.exists(tok_path):
+                self.core_tokenizer = AutoTokenizer.from_pretrained(tok_path, use_fast=False)
+            else:
+                self.core_tokenizer = AutoTokenizer.from_pretrained(self.core_model_name, use_fast=False)
+                
+            self.core_model = TransformerClassifier(self.core_model_name)
+            self.core_model.load_state_dict(torch.load(f"{self.models_dir}/deberta.pt", map_location=self.device))
+            self.core_model.to(self.device).eval()
         return self.core_model, self.core_tokenizer
 
     def _get_ai_engine(self):
@@ -71,38 +78,54 @@ class Predictor:
         return self.ai_model, self.ai_tokenizer
 
     def _get_model(self, model_type):
-        if model_type == 'bilstm' or model_type == 'deberta': # Use Bi-LSTM as core for both if requested for stability
+        if model_type == 'deberta':
             return self._get_core_engine()
 
         if model_type in self.loaded_models:
             return self.loaded_models[model_type], self.tokenizers.get(model_type) or self.vocabs.get(model_type)
+
+        if model_type == 'bilstm':
+            vocab = load_bilstm_vocab(f"{self.models_dir}/bilstm_vocab.pkl")
+            model_params = {k: v for k, v in self.cfg_bilstm.items() if k != 'max_len'}
+            model = BiLSTMClassifier(**model_params)
+            model.load_state_dict(torch.load(f"{self.models_dir}/bilstm.pt", map_location=self.device))
+            model.to(self.device).eval()
+            self.loaded_models[model_type] = model
+            self.vocabs[model_type] = vocab
+            return model, vocab
         
-        # ... fallback for others
-        name_map = {
-            'distilroberta': 'distilroberta-base',
-            'roberta': 'roberta-base'
-        }
-        model_name = name_map.get(model_type)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = TransformerClassifier(model_name)
-        model.load_state_dict(torch.load(f"{self.models_dir}/{model_type}.pt", map_location=self.device))
-        model.to(self.device).eval()
-        self.loaded_models[model_type] = model
-        self.tokenizers[model_type] = tokenizer
-        return model, tokenizer
+        else:
+            # Other Transformer models
+            name_map = {
+                'distilroberta': 'distilroberta-base',
+                'roberta': 'roberta-base'
+            }
+            model_name = name_map.get(model_type)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = TransformerClassifier(model_name)
+            model.load_state_dict(torch.load(f"{self.models_dir}/{model_type}.pt", map_location=self.device))
+            model.to(self.device).eval()
+            self.loaded_models[model_type] = model
+            self.tokenizers[model_type] = tokenizer
+            return model, tokenizer
 
     def predict(self, text, model_type='deberta', title=''):
         # 1. Veracity Prediction (Fake/Real)
-        # Note: In notebook, Bi-LSTM was trained on Title + Text, Transformers only on Text.
-        
-        v_model, v_processor = self._get_model('bilstm') # Force Bi-LSTM for 96% accuracy
+        v_model, v_processor = self._get_model(model_type)
         
         with torch.no_grad():
-            # Bi-LSTM expects combined input
-            full_input = f"{title} {text}"
-            cleaned = clean_text(full_input, lower=True)
-            inputs = tokenize_bilstm(cleaned, v_processor, self.cfg_bilstm['max_len']).to(self.device)
-            logits = v_model(inputs)
+            if model_type == 'bilstm':
+                # Bi-LSTM was trained on Title + Text
+                full_input = f"{title} {text}"
+                cleaned = clean_text(full_input, lower=True)
+                inputs = tokenize_bilstm(cleaned, v_processor, self.cfg_bilstm['max_len']).to(self.device)
+                logits = v_model(inputs)
+            else:
+                # IMPORTANT: DeBERTa/RoBERTa were trained ONLY on 'text' in the notebook.
+                # Adding title here was causing the poor accuracy.
+                cleaned = clean_text(text, lower=False)
+                inputs = v_processor(cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
+                logits = v_model(**inputs)
             
             probs = torch.softmax(logits, dim=1)
             v_conf, v_pred = torch.max(probs, dim=1)
@@ -122,7 +145,7 @@ class Predictor:
             'fake_news': {
                 'prediction': fake_news_pred,
                 'confidence': round(v_conf.item() * 100, 2),
-                'model': 'Bi-LSTM (Core)'
+                'model': 'DeBERTa-v3 (MTL-Sim)'
             },
             'ai_detection': {
                 'prediction': ai_pred,
