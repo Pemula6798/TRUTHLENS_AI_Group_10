@@ -71,9 +71,11 @@ class Predictor:
     def _get_ai_engine(self):
         if self.ai_model is None:
             print(f"Loading Origin Engine: {self.ai_model_name}...")
+            from transformers import AutoModelForSequenceClassification
             # Use use_fast=False for stability on HF Spaces
             self.ai_tokenizer = AutoTokenizer.from_pretrained(self.ai_model_name, use_fast=False)
-            self.ai_model = TransformerClassifier(self.ai_model_name)
+            # Load directly to use pre-trained classification head
+            self.ai_model = AutoModelForSequenceClassification.from_pretrained(self.ai_model_name)
             self.ai_model.to(self.device).eval()
         return self.ai_model, self.ai_tokenizer
 
