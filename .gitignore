@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.npm
+dist/
+build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebooks (EXCLUDE STRICTLY)
+*.ipynb
+
+# Files to KEEP (Models)
+# *.pt - Handled by Git LFS
+# *.pkl - Handled by Git LFS
+
+# Other heavy files
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.docx
+*.pdf
+*.txt
+*.zip
+venv/
+env/
+.venv/
+.vscode/
+.idea/
