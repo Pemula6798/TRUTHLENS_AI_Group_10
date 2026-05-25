@@ -51,6 +51,7 @@ const App: React.FC = () => {
 
   const handlePredict = async () => {
     if (!inputText.trim()) return;
+    console.log("Starting scan... Target URL:", API_BASE_URL);
     setLoading(true);
     setResult(null);
     setError(null);
@@ -61,22 +62,26 @@ const App: React.FC = () => {
         body: JSON.stringify({ text: inputText, model: 'deberta' }),
       });
       
+      console.log("Response received. Status:", res.status);
       const data = await res.json();
+      console.log("Data parsed:", data);
       
       if (!res.ok) {
-        throw new Error(data.detail || 'Neural processing failed');
+        throw new Error(data.detail || `Server error: ${res.status}`);
       }
 
       if (!data.fake_news || !data.ai_detection) {
+        console.error("Invalid data structure:", data);
         throw new Error('Malformed response from neural node');
       }
 
       setResult(data);
       setTimeout(() => {
-        document.getElementById('result-target')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 400);
+        const target = document.getElementById('result-target');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
     } catch (e: any) { 
-      console.error(e);
+      console.error("Scan failed error:", e);
       setError(e.message || 'An unexpected connection error occurred');
     } finally { 
       setLoading(false); 
