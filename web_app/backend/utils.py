@@ -131,7 +131,9 @@ class Predictor:
             
             probs = torch.softmax(logits, dim=1)
             v_conf, v_pred = torch.max(probs, dim=1)
-            fake_news_pred = 'Real' if v_pred.item() == 1 else 'Fake'
+            # Dataset convention from WELFake: 0=Real, 1=Fake
+            # The model learned: class 0 → Real, class 1 → Fake
+            fake_news_pred = 'Real' if v_pred.item() == 0 else 'Fake'
 
         # 2. Origin Prediction (Human/AI)
         ai_model, ai_processor = self._get_ai_engine()
