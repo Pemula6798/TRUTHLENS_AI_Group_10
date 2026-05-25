@@ -138,8 +138,9 @@ class Predictor:
         with torch.no_grad():
             ai_cleaned = clean_text(text, lower=False)
             ai_inputs = ai_processor(ai_cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
-            ai_logits = ai_model(**ai_inputs)
-            ai_probs = torch.softmax(ai_logits, dim=1)
+            # Use AutoModel directly, so we need .logits
+            ai_outputs = ai_model(**ai_inputs)
+            ai_probs = torch.softmax(ai_outputs.logits, dim=1)
             ai_conf_val, ai_pred_idx = torch.max(ai_probs, dim=1)
             ai_pred = 'Human' if ai_pred_idx.item() == 0 else 'AI Generated'
 
