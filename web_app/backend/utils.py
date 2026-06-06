@@ -37,7 +37,7 @@ class Predictor:
         self.tokenizers = {}
         self.vocabs = {}
         
-        # Origin Engine: AI Detection (Keep separate for accuracy)
+        # AI/Human Engine: AI Detection (Keep separate for accuracy)
         self.ai_model_name = "Hello-SimpleAI/chatgpt-detector-roberta"
         self.ai_model = None
         self.ai_tokenizer = None
@@ -47,7 +47,7 @@ class Predictor:
 
     def _get_ai_engine(self):
         if self.ai_model is None:
-            print(f"Loading Origin Engine: {self.ai_model_name}...")
+            print(f"Loading AI/Human Engine: {self.ai_model_name}...")
             from transformers import AutoModelForSequenceClassification
             # Use use_fast=False for stability on HF Spaces
             self.ai_tokenizer = AutoTokenizer.from_pretrained(self.ai_model_name, use_fast=False)
@@ -62,9 +62,12 @@ class Predictor:
 
         if model_type == 'bilstm':
             vocab = load_bilstm_vocab(f"{self.models_dir}/bilstm_vocab.pkl")
-            model_params = {k: v for k, v in self.cfg_bilstm.items() if k != 'max_len'}
+            model_params = {k: v for k, v in self.cfg_bilstm.items() if k not in ['max_len', 'vocab_size']}
+            model_params['vocab_size'] = len(vocab)
             model = BiLSTMClassifier(**model_params)
-            model.load_state_dict(torch.load(f"{self.models_dir}/bilstm_best.pt", map_location=self.device))
+            sd = torch.load(f"{self.models_dir}/bilstm_best.pt", map_location=self.device)
+            msd = {k.replace("veracity_head", "fake_real_head").replace("origin_head", "ai_human_head"): v for k, v in sd.items()}
+            model.load_state_dict(msd)
             model.to(self.device).eval()
             self.loaded_models[model_type] = model
             self.vocabs[model_type] = vocab
@@ -79,14 +82,15 @@ class Predictor:
             model_name = name_map.get(model_type)
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = TransformerClassifier(model_name)
-            model.load_state_dict(torch.load(f"{self.models_dir}/{model_type}_best.pt", map_location=self.device))
+            sd = torch.load(f"{self.models_dir}/{model_type}_best.pt", map_location=self.device)
+            msd = {k.replace("veracity_head", "fake_real_head").replace("origin_head", "ai_human_head"): v for k, v in sd.items()}
+            model.load_state_dict(msd)
             model.to(self.device).eval()
             self.loaded_models[model_type] = model
             self.tokenizers[model_type] = tokenizer
             return model, tokenizer
 
     def predict(self, text, model_type='bilstm', title=''):
-        # 1. Veracity Prediction (Fake/Real)
         v_model, v_processor = self._get_model(model_type)
         
         with torch.no_grad():
@@ -95,35 +99,25 @@ class Predictor:
                 full_input = f"{title} {text}"
                 cleaned = clean_text(full_input, lower=True)
                 inputs = tokenize_bilstm(cleaned, v_processor, self.cfg_bilstm['max_len']).to(self.device)
-                logits = v_model(inputs)
+                logits_fake_real, logits_ai_human = v_model(inputs)
             else:
-                # IMPORTANT: DeBERTa/RoBERTa were trained ONLY on 'text' in the notebook.
-                # Adding title here was causing the poor accuracy.
+                # Transformers were trained ONLY on 'text'
                 cleaned = clean_text(text, lower=False)
                 inputs = v_processor(cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
-                logits = v_model(**inputs)
+                logits_fake_real, logits_ai_human = v_model(**inputs)
             
-            probs = torch.softmax(logits, dim=1)
-            v_conf, v_pred = torch.max(probs, dim=1)
-            # Dataset convention from WELFake: 0=Real, 1=Fake
-            # The model learned: class 0 → Real, class 1 → Fake
+            probs_fake_real = torch.softmax(logits_fake_real, dim=1)
+            v_conf, v_pred = torch.max(probs_fake_real, dim=1)
             fake_news_pred = 'Real' if v_pred.item() == 0 else 'Fake'
 
-        # 2. Origin Prediction (Human/AI)
-        ai_model, ai_processor = self._get_ai_engine()
-        with torch.no_grad():
-            ai_cleaned = clean_text(text, lower=False)
-            ai_inputs = ai_processor(ai_cleaned, return_tensors='pt', truncation=True, padding=True, max_length=256).to(self.device)
-            # Use AutoModel directly, so we need .logits
-            ai_outputs = ai_model(**ai_inputs)
-            ai_probs = torch.softmax(ai_outputs.logits, dim=1)
-            ai_conf_val, ai_pred_idx = torch.max(ai_probs, dim=1)
+            probs_ai_human = torch.softmax(logits_ai_human, dim=1)
+            ai_conf_val, ai_pred_idx = torch.max(probs_ai_human, dim=1)
             ai_pred = 'Human' if ai_pred_idx.item() == 0 else 'AI Generated'
 
         model_names = {
-            'bilstm': 'Bi-LSTM Classifier',
-            'roberta': 'RoBERTa-base',
-            'distilroberta': 'DistilRoBERTa-base'
+            'bilstm': 'Bi-LSTM Classifier (MTL)',
+            'roberta': 'RoBERTa-base (MTL)',
+            'distilroberta': 'DistilRoBERTa-base (MTL)'
         }
 
         return {
@@ -135,6 +129,6 @@ class Predictor:
             'ai_detection': {
                 'prediction': ai_pred,
                 'confidence': round(ai_conf_val.item() * 100, 2),
-                'model': 'chatgpt-detector'
+                'model': model_names.get(model_type, model_type)
             }
         }
