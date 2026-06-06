@@ -32,16 +32,11 @@ class Predictor:
         self.models_dir = models_dir
         
         # Hardcoded available models to bypass deleted predictor_meta.pkl
-        self.available_models = ['bilstm', 'deberta', 'roberta', 'distilroberta']
+        self.available_models = ['bilstm', 'roberta', 'distilroberta']
         self.loaded_models = {}
         self.tokenizers = {}
         self.vocabs = {}
         
-        # Core Engine: DeBERTa-v3 (Reverted per user request)
-        self.core_model_name = "microsoft/deberta-v3-base"
-        self.core_model = None
-        self.core_tokenizer = None
-
         # Origin Engine: AI Detection (Keep separate for accuracy)
         self.ai_model_name = "Hello-SimpleAI/chatgpt-detector-roberta"
         self.ai_model = None
@@ -49,21 +44,6 @@ class Predictor:
 
         # Configs from notebook
         self.cfg_bilstm = dict(vocab_size=50_000, embed_dim=300, hidden_dim=256, n_layers=2, dropout=0.3, max_len=300)
-
-    def _get_core_engine(self):
-        if self.core_model is None:
-            print(f"Loading Veracity Engine: {self.core_model_name}...")
-            # Load tokenizer from local path to bypass download/parsing errors
-            tok_path = f"{self.models_dir}/deberta_tokenizer"
-            if os.path.exists(tok_path):
-                self.core_tokenizer = AutoTokenizer.from_pretrained(tok_path, use_fast=False)
-            else:
-                self.core_tokenizer = AutoTokenizer.from_pretrained(self.core_model_name, use_fast=False)
-                
-            self.core_model = TransformerClassifier(self.core_model_name)
-            self.core_model.load_state_dict(torch.load(f"{self.models_dir}/deberta_best.pt", map_location=self.device))
-            self.core_model.to(self.device).eval()
-        return self.core_model, self.core_tokenizer
 
     def _get_ai_engine(self):
         if self.ai_model is None:
@@ -77,9 +57,6 @@ class Predictor:
         return self.ai_model, self.ai_tokenizer
 
     def _get_model(self, model_type):
-        if model_type == 'deberta':
-            return self._get_core_engine()
-
         if model_type in self.loaded_models:
             return self.loaded_models[model_type], self.tokenizers.get(model_type) or self.vocabs.get(model_type)
 
@@ -145,7 +122,6 @@ class Predictor:
 
         model_names = {
             'bilstm': 'Bi-LSTM Classifier',
-            'deberta': 'DeBERTa-v3 (MTL-Sim)',
             'roberta': 'RoBERTa-base',
             'distilroberta': 'DistilRoBERTa-base'
         }
