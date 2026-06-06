@@ -41,7 +41,7 @@ if os.path.exists("web_app/backend/static/frontend"):
 class NewsRequest(BaseModel):
     title: str = ""
     text: str
-    model: str = "deberta"
+    model: str = "bilstm"
 
 @app.get("/")
 def read_root():

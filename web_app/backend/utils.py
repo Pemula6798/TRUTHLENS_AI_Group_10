@@ -31,11 +31,8 @@ class Predictor:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.models_dir = models_dir
         
-        # Metadata
-        with open(f"{models_dir}/predictor_meta.pkl", 'rb') as f:
-            self.meta = pickle.load(f)
-            
-        self.available_models = self.meta['available_models']
+        # Hardcoded available models to bypass deleted predictor_meta.pkl
+        self.available_models = ['bilstm', 'deberta', 'roberta', 'distilroberta']
         self.loaded_models = {}
         self.tokenizers = {}
         self.vocabs = {}
@@ -64,7 +61,7 @@ class Predictor:
                 self.core_tokenizer = AutoTokenizer.from_pretrained(self.core_model_name, use_fast=False)
                 
             self.core_model = TransformerClassifier(self.core_model_name)
-            self.core_model.load_state_dict(torch.load(f"{self.models_dir}/deberta.pt", map_location=self.device))
+            self.core_model.load_state_dict(torch.load(f"{self.models_dir}/deberta_best.pt", map_location=self.device))
             self.core_model.to(self.device).eval()
         return self.core_model, self.core_tokenizer
 
@@ -90,7 +87,7 @@ class Predictor:
             vocab = load_bilstm_vocab(f"{self.models_dir}/bilstm_vocab.pkl")
             model_params = {k: v for k, v in self.cfg_bilstm.items() if k != 'max_len'}
             model = BiLSTMClassifier(**model_params)
-            model.load_state_dict(torch.load(f"{self.models_dir}/bilstm.pt", map_location=self.device))
+            model.load_state_dict(torch.load(f"{self.models_dir}/bilstm_best.pt", map_location=self.device))
             model.to(self.device).eval()
             self.loaded_models[model_type] = model
             self.vocabs[model_type] = vocab
@@ -105,13 +102,13 @@ class Predictor:
             model_name = name_map.get(model_type)
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = TransformerClassifier(model_name)
-            model.load_state_dict(torch.load(f"{self.models_dir}/{model_type}.pt", map_location=self.device))
+            model.load_state_dict(torch.load(f"{self.models_dir}/{model_type}_best.pt", map_location=self.device))
             model.to(self.device).eval()
             self.loaded_models[model_type] = model
             self.tokenizers[model_type] = tokenizer
             return model, tokenizer
 
-    def predict(self, text, model_type='deberta', title=''):
+    def predict(self, text, model_type='bilstm', title=''):
         # 1. Veracity Prediction (Fake/Real)
         v_model, v_processor = self._get_model(model_type)
         
@@ -146,11 +143,18 @@ class Predictor:
             ai_conf_val, ai_pred_idx = torch.max(ai_probs, dim=1)
             ai_pred = 'Human' if ai_pred_idx.item() == 0 else 'AI Generated'
 
+        model_names = {
+            'bilstm': 'Bi-LSTM Classifier',
+            'deberta': 'DeBERTa-v3 (MTL-Sim)',
+            'roberta': 'RoBERTa-base',
+            'distilroberta': 'DistilRoBERTa-base'
+        }
+
         return {
             'fake_news': {
                 'prediction': fake_news_pred,
                 'confidence': round(v_conf.item() * 100, 2),
-                'model': 'DeBERTa-v3 (MTL-Sim)'
+                'model': model_names.get(model_type, model_type)
             },
             'ai_detection': {
                 'prediction': ai_pred,
