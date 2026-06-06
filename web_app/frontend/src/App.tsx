@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  ShieldAlert, Newspaper, PieChart, Info, Search, Loader2, CheckCircle2, 
-  XCircle, BarChart3, BrainCircuit, Activity, Globe, Zap, Cpu, Sparkles, 
-  ChevronDown, Terminal, Server, ShieldCheck, Database, Layers, ExternalLink, ArrowRight,
-  TrendingUp, MousePointer2, Box, Eye
+  ShieldAlert, Newspaper, Info, Loader2, CheckCircle2, 
+  XCircle, BrainCircuit, Activity, Globe, Zap, Cpu, Sparkles, 
+  Terminal, ShieldCheck, Database, Layers, ArrowRight,
+  TrendingUp
 } from 'lucide-react';
-import { motion, AnimatePresence, useScroll, useSpring, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import NeuralScene from './components/NeuralScene';
 
-// Sanitize URL: remove trailing slash if exists
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// Point frontend to our Hugging Face Space API as the default backend
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pyroblizzed-truthlensai.hf.space').replace(/\/$/, '');
 
 interface PredictionResult {
   fake_news: { prediction: 'Real' | 'Fake'; confidence: number; model: string; };
@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [scanHistory, setScanHistory] = useState<any[]>([]);
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
 
@@ -48,6 +49,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => setIsInitializing(false), 2800);
+    
+    // Load scan history from local storage
+    const saved = localStorage.getItem('scan_history');
+    if (saved) {
+      try {
+        setScanHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history:", e);
+      }
+    }
+    
     return () => clearTimeout(timer);
   }, []);
 
@@ -67,7 +79,7 @@ const App: React.FC = () => {
         body: JSON.stringify({ 
           title: inputTitle,
           text: inputContent, 
-          model: 'deberta' 
+          model: 'bilstm' // Updated default model from deberta to bilstm
         }),
       });
       
@@ -80,6 +92,23 @@ const App: React.FC = () => {
       }
 
       setResult(data);
+      
+      // Save item to scan history
+      const newHistoryItem = {
+        id: Math.random().toString(36).substring(2, 9),
+        title: inputTitle,
+        text: inputContent.substring(0, 100) + (inputContent.length > 100 ? '...' : ''),
+        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        fake_news: data.fake_news,
+        ai_detection: data.ai_detection
+      };
+      
+      setScanHistory(prev => {
+        const updated = [newHistoryItem, ...prev.slice(0, 9)];
+        localStorage.setItem('scan_history', JSON.stringify(updated));
+        return updated;
+      });
+
       setTimeout(() => {
         const target = document.getElementById('result-target');
         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -92,36 +121,41 @@ const App: React.FC = () => {
     }
   };
 
+  const clearHistory = () => {
+    setScanHistory([]);
+    localStorage.removeItem('scan_history');
+  };
+
   const analysisCards = [
     {
-      title: "DeBERTa-v3 Architecture",
-      tag: "CORE TECHNOLOGY",
-      desc: "Our engine utilizes the Microsoft DeBERTa-v3 Transformer ensemble. Beyond just accuracy, it prioritizes semantic context, processing information with disentangled attention to understand subtle linguistic nuances. This design ensures the system isn't just matching keywords, but understanding the narrative structure of the news."
+      title: "Bi-LSTM Neural Network",
+      tag: "CORE MODEL",
+      desc: "Our model uses a Bidirectional LSTM (Long Short-Term Memory) network paired with an attention pooling layer. It reads text forwards and backwards to capture full contextual relationships between words. It is highly optimized, fast, and does not require heavy GPU compute resources to run."
     },
     {
-      title: "Balanced Neural Benchmarking",
-      tag: "RELIABILITY",
-      desc: "Performance is measured across a spectrum of metrics: Precision, Recall, and F1-Score. By optimizing for the harmonic mean of these values, we ensure a balanced detection system that minimizes False Alarms (protecting real news) while maintaining a strict filter against misinformation."
+      title: "Balanced Training Metrics",
+      tag: "PERFORMANCE",
+      desc: "We track Precision, Recall, and F1-Score to ensure our model doesn't just guess one class. By optimizing the model for a high F1-Score, we keep false alarms to a minimum, ensuring real news is protected while successfully filtering out fabrications."
     },
     {
-      title: "Synthetics & AI Detection",
-      tag: "CONTENT ORIGIN",
-      desc: "Trained on a specialized hybrid dataset of 24,000 samples, the model identifies the unique fingerprint of machine-generated text. It looks for over-optimization, a common trait in AI-generated fake news where the grammar is perfect but the semantic logic is manipulated."
+      title: "WELFake Dataset Foundation",
+      tag: "DATASET",
+      desc: "The classifier was trained on the public WELFake dataset, which contains over 72,000 verified real and fake news articles. This huge variety of data exposes the model to diverse writing styles, topics, and structures across global journalism."
     },
     {
-      title: "Enterprise Efficiency",
-      tag: "SYSTEM PERFORMANCE",
-      desc: "High precision usually comes with high cost. Our architecture is engineered for rapid response times, achieving a golden ratio of deep-learning depth and operational speed. This allows for instantaneous news verification without server bottlenecks."
+      title: "Sub-10ms Inference Time",
+      tag: "LATENCY",
+      desc: "Unlike heavy modern transformers that cause server bottlenecks and latency, the Bi-LSTM model is lightweight and executes in under 10 milliseconds. This makes it ideal for real-time applications and public deployments."
     },
     {
-      title: "Semantic Pattern Mapping",
-      tag: "INTELLIGENCE",
-      desc: "The AI maps emotional triggers and sensationalist vocabulary. While factual reporting uses neutral descriptive tokens, misinformation patterns often rely on high-intensity emotional markers. Our system detects these patterns at a structural level, regardless of the topic."
+      title: "Word Pattern Profiling",
+      tag: "FEATURE EXTRACTION",
+      desc: "Our model recognizes linguistic patterns typical of misinformation. While reliable news sources lean on neutral vocabulary and descriptive facts, fake articles often feature high-intensity emotional markers, clickbait wording, and aggressive formatting."
     },
     {
-      title: "Robust Data Integrity",
-      tag: "FOUNDATION",
-      desc: "Trust starts with the data. The model's foundation is a meticulously balanced split of verified real-world reporting and sophisticated fabrications. This rigorous training ensures the AI generalizes across global news events with zero historical bias."
+      title: "Open Code & Transparency",
+      tag: "OPEN SOURCE",
+      desc: "Everything is open and verifiable. The data preprocessing scripts, pipeline notebooks, model architectures, and training weights are documented in our repository, making it easy for anyone to inspect, run, or audit the code."
     }
   ];
 
@@ -143,8 +177,8 @@ const App: React.FC = () => {
         <section id="hero" className="hero-section full-page">
           <motion.div className="hero-content" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
             <div className="badge-modern"><Sparkles size={14} /> <span>Neural Verification Framework</span></div>
-            <h1>Illuminate the <span className="text-glow">Hidden Truth</span> <br/> in Global Media.</h1>
-            <p>Next-generation artificial intelligence designed to deconstruct misinformation and identify synthetic content with laboratory-grade precision.</p>
+            <h1>Spot Fake News Instantly <br/> with <span className="text-glow">Machine Learning</span>.</h1>
+            <p>A simple, fast tool that uses a Bidirectional LSTM network to analyze news text and detect whether it is real or fake.</p>
             <div className="hero-btns">
               <motion.a href="#verify" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="btn-main">Get Started <ArrowRight size={18} /></motion.a>
               <a href="#analysis" className="btn-ghost">Research Data</a>
@@ -156,7 +190,7 @@ const App: React.FC = () => {
           <div className="container">
             <motion.div className="section-title" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
               <h2>Verification Engine</h2>
-              <p>Execute neural analysis to verify veracity and content origin</p>
+              <p>Analyze articles to verify veracity and content origin</p>
             </motion.div>
 
             <div className="verify-grid">
@@ -171,7 +205,7 @@ const App: React.FC = () => {
                 <div className="card-header"><Terminal size={14} /> <span>INPUT_STREAM_RAW</span></div>
                 
                 <div className="input-group-modern">
-                  <label><Newspaper size={12} /> ARTICLE_TITLE</label>
+                  <label><Newspaper size={12} /> ARTICLE TITLE</label>
                   <input 
                     type="text"
                     placeholder="Enter headline here..."
@@ -182,7 +216,7 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="input-group-modern" style={{ marginTop: '20px' }}>
-                  <label><Terminal size={12} /> ARTICLE_CONTENT</label>
+                  <label><Terminal size={12} /> ARTICLE CONTENT</label>
                   <textarea 
                     placeholder="Paste news content here for deep analysis... (Note: Model optimized for political news context)" 
                     value={inputContent} 
@@ -190,12 +224,12 @@ const App: React.FC = () => {
                   />
                 </div>
 
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '15px' }}>
                   <Info size={12} />
                   <span>Disclaimer: Training data is primarily focused on political issues. Results may vary for other topics.</span>
                 </div>
                 <div className="engine-select">
-                  <label>ACTIVE NEURAL ARCHITECTURE: DEBERTA-V3 TRANSFORMER</label>
+                  <label>ACTIVE NEURAL ARCHITECTURE: BI-LSTM CLASSIFIER</label>
                 </div>
                 <button className="scan-btn" onClick={handlePredict} disabled={loading||!inputTitle.trim()||!inputContent.trim()}>
                   {loading ? <Loader2 className="spin"/> : <><Zap size={18}/> EXECUTE NEURAL SCAN</>}
@@ -229,7 +263,7 @@ const App: React.FC = () => {
                       </motion.div>
 
                       <motion.div {...tiltProps} className={`res-item ${result.ai_detection.prediction === 'Human' ? 'real' : 'fake'}`} style={{marginTop:'20px'}}>
-                        <div className="res-tag-badge">ORIGIN_DETECTION_LOG</div>
+                        <div className="res-tag-badge">ORIGIN DETECTION</div>
                         <div className="res-row">
                           <div className="res-icon">{result.ai_detection.prediction === 'Human' ? <Globe size={36}/> : <BrainCircuit size={36}/>}</div>
                           <div className="res-info">
@@ -246,11 +280,98 @@ const App: React.FC = () => {
                     <div className="result-idle glass-card">
                       <div className="laser-scanner" />
                       <BrainCircuit size={80} className="idle-icon" />
-                      <h3>Neural Standby</h3>
-                      <p>Awaiting valid text input for pattern matching</p>
+                      <h3>Ready to Scan</h3>
+                      <p>Paste an article on the left and click check to start.</p>
                     </div>
                   )}
                 </AnimatePresence>
+
+                {/* Scan History Section */}
+                {scanHistory.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    className="history-panel glass-card" 
+                    style={{ marginTop: '20px', padding: '24px' }}
+                  >
+                    <div className="card-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Activity size={14} /> <span>SCAN_HISTORY_LOG</span>
+                      </div>
+                      <button 
+                        onClick={clearHistory} 
+                        className="clear-history-btn"
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          color: 'var(--e-danger)', 
+                          fontSize: '11px', 
+                          fontFamily: 'inherit',
+                          fontWeight: 700, 
+                          cursor: 'pointer',
+                          opacity: 0.7
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
+                      >
+                        CLEAR_LOGS
+                      </button>
+                    </div>
+                    <div className="history-list" style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {scanHistory.map((item) => (
+                        <div 
+                          key={item.id} 
+                          className="history-item" 
+                          style={{ 
+                            padding: '12px 16px', 
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            borderRadius: '12px',
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            gap: '15px'
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="history-item-title" style={{ fontWeight: 700, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }}>{item.title}</div>
+                            <div className="history-item-date" style={{ fontSize: '10px', color: 'var(--e-text-muted)', marginTop: '4px' }}>{item.date}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                            <span 
+                              className={`badge-veracity ${item.fake_news.prediction.toLowerCase()}`} 
+                              style={{ 
+                                fontSize: '10px', 
+                                fontWeight: 800,
+                                padding: '4px 8px', 
+                                borderRadius: '6px', 
+                                background: item.fake_news.prediction === 'Real' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(251, 113, 133, 0.1)', 
+                                color: item.fake_news.prediction === 'Real' ? 'var(--e-success)' : 'var(--e-danger)',
+                                border: `1px solid ${item.fake_news.prediction === 'Real' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 113, 133, 0.2)'}`
+                              }}
+                            >
+                              {item.fake_news.prediction.toUpperCase()}
+                            </span>
+                            <span 
+                              className={`badge-origin ${item.ai_detection.prediction === 'Human' ? 'real' : 'fake'}`} 
+                              style={{ 
+                                fontSize: '10px', 
+                                fontWeight: 800,
+                                padding: '4px 8px', 
+                                borderRadius: '6px', 
+                                background: item.ai_detection.prediction === 'Human' ? 'rgba(129, 140, 248, 0.1)' : 'rgba(167, 139, 250, 0.1)', 
+                                color: item.ai_detection.prediction === 'Human' ? 'var(--e-indigo)' : 'var(--e-violet)',
+                                border: `1px solid ${item.ai_detection.prediction === 'Human' ? 'rgba(129, 140, 248, 0.2)' : 'rgba(167, 139, 250, 0.2)'}`
+                              }}
+                            >
+                              {item.ai_detection.prediction === 'Human' ? 'HUMAN' : 'AI'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             </div>
           </div>
@@ -291,7 +412,7 @@ const App: React.FC = () => {
             <div className="tech-grid">
               {[
                 {icon:<Cpu/>,title:'Inference Node',desc:'Asynchronous FastAPI backend optimized for high-concurrency neural workloads.'},
-                {icon:<Database/>,title:'Semantic Repository',desc:'Balanced research dataset containing 24,000+ verified news samples.'},
+                {icon:<Database/>,title:'Semantic Repository',desc:'Balanced research dataset containing 72,000+ verified news samples.'},
                 {icon:<Layers/>,title:'Ensemble Pipeline',desc:'Multi-stage architecture designed for maximum linguistic precision.'},
                 {icon:<ShieldCheck/>,title:'Security Protocol',desc:'Zero-trust verification pipeline ensuring content integrity and scan safety.'}
               ].map((t,i)=>(
