@@ -202,10 +202,10 @@ const App: React.FC = () => {
                 viewport={{ once: true }} 
                 transition={{ duration: 0.8, type: "spring", damping: 15 }}
               >
-                <div className="card-header"><Terminal size={14} /> <span>INPUT_STREAM_RAW</span></div>
+                <div className="card-header"><Terminal size={14} /> <span>Input Source</span></div>
                 
                 <div className="input-group-modern">
-                  <label><Newspaper size={12} /> ARTICLE TITLE</label>
+                  <label><Newspaper size={12} /> Article Title</label>
                   <input 
                     type="text"
                     placeholder="Enter headline here..."
@@ -216,7 +216,7 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="input-group-modern" style={{ marginTop: '20px' }}>
-                  <label><Terminal size={12} /> ARTICLE CONTENT</label>
+                  <label><Terminal size={12} /> Article Content</label>
                   <textarea 
                     placeholder="Paste news content here for deep analysis... (Note: Model optimized for political news context)" 
                     value={inputContent} 
@@ -229,10 +229,10 @@ const App: React.FC = () => {
                   <span>Disclaimer: Training data is primarily focused on political issues. Results may vary for other topics.</span>
                 </div>
                 <div className="engine-select">
-                  <label>ACTIVE NEURAL ARCHITECTURE: BI-LSTM CLASSIFIER</label>
+                  <label>Active Model: Bi-LSTM Classifier</label>
                 </div>
                 <button className="scan-btn" onClick={handlePredict} disabled={loading||!inputTitle.trim()||!inputContent.trim()}>
-                  {loading ? <Loader2 className="spin"/> : <><Zap size={18}/> EXECUTE NEURAL SCAN</>}
+                  {loading ? <Loader2 className="spin"/> : <><Zap size={18}/> Start Scan</>}
                 </button>
               </motion.div>
 
@@ -244,12 +244,12 @@ const App: React.FC = () => {
                       <ShieldAlert size={50} color="#ff4444" />
                       <h3>Neural Link Failure</h3>
                       <p>{error}</p>
-                      <button onClick={() => setError(null)} className="retry-btn">RESET_PROTOCOL</button>
+                      <button onClick={() => setError(null)} className="retry-btn">Retry Connection</button>
                     </motion.div>
                   ) : result ? (
                     <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} className="result-display">
                       <motion.div {...tiltProps} className={`res-item ${result.fake_news.prediction.toLowerCase()}`}>
-                        <div className="res-tag-badge">VERACITY ANALYSIS</div>
+                        <div className="res-tag-badge">Veracity Analysis</div>
                         <div className="res-row">
                           <div className="res-icon">{result.fake_news.prediction === 'Real' ? <CheckCircle2 size={36}/> : <XCircle size={36}/>}</div>
                           <div className="res-info">
@@ -263,7 +263,7 @@ const App: React.FC = () => {
                       </motion.div>
 
                       <motion.div {...tiltProps} className={`res-item ${result.ai_detection.prediction === 'Human' ? 'real' : 'fake'}`} style={{marginTop:'20px'}}>
-                        <div className="res-tag-badge">ORIGIN DETECTION</div>
+                        <div className="res-tag-badge">Origin Detection</div>
                         <div className="res-row">
                           <div className="res-icon">{result.ai_detection.prediction === 'Human' ? <Globe size={36}/> : <BrainCircuit size={36}/>}</div>
                           <div className="res-info">
@@ -296,7 +296,7 @@ const App: React.FC = () => {
                   >
                     <div className="card-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Activity size={14} /> <span>SCAN_HISTORY_LOG</span>
+                        <Activity size={14} /> <span>Scan History</span>
                       </div>
                       <button 
                         onClick={clearHistory} 
@@ -314,7 +314,7 @@ const App: React.FC = () => {
                         onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                         onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
                       >
-                        CLEAR_LOGS
+                        Clear History
                       </button>
                     </div>
                     <div className="history-list" style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -425,10 +425,10 @@ const App: React.FC = () => {
             </div>
             <footer className="footer-pro">
               <div className="f-row">
-                <span>© 2026 TRUTHLENS AI SYSTEMS. ALL RIGHTS RESERVED.</span>
+                <span>© 2026 TRUTHLENS AI. ALL RIGHTS RESERVED.</span>
                 <div className="f-tags">
-                  <TrendingUp size={14} /> <span>v1.5.0 STABLE</span>
-                  <span className="dot-green" /><span>ENCRYPTED_STREAM</span>
+                  <TrendingUp size={14} /> <span>v1.5.0 Stable</span>
+                  <span className="dot-green" /><span>Secure Connection</span>
                 </div>
               </div>
             </footer>

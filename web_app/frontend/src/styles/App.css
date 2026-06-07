@@ -53,9 +53,8 @@ body {
   min-height: 100vh; 
   display: flex; 
   flex-direction: column; 
-  justify-content: center; 
-  align-items: center; 
-  padding: 120px 24px;
+  justify-content: flex-start;
+  padding: 120px 24px 60px;
   position: relative;
 }
 
