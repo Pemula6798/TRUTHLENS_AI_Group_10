@@ -190,7 +190,7 @@ const App: React.FC = () => {
           <div className="container">
             <motion.div className="section-title" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
               <h2>Verification Engine</h2>
-              <p>Analyze articles to verify veracity and content origin</p>
+              <p>Analyze articles to verify fake_real and content ai_human</p>
             </motion.div>
 
             <div className="verify-grid">
@@ -339,7 +339,7 @@ const App: React.FC = () => {
                           </div>
                           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                             <span 
-                              className={`badge-veracity ${item.fake_news.prediction.toLowerCase()}`} 
+                              className={`badge-fake_real ${item.fake_news.prediction.toLowerCase()}`} 
                               style={{ 
                                 fontSize: '10px', 
                                 fontWeight: 800,
@@ -353,7 +353,7 @@ const App: React.FC = () => {
                               {item.fake_news.prediction.toUpperCase()}
                             </span>
                             <span 
-                              className={`badge-origin ${item.ai_detection.prediction === 'Human' ? 'real' : 'fake'}`} 
+                              className={`badge-ai_human ${item.ai_detection.prediction === 'Human' ? 'real' : 'fake'}`} 
                               style={{ 
                                 fontSize: '10px', 
                                 fontWeight: 800,
