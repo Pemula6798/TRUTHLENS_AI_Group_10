@@ -23,6 +23,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+#root { overflow-x: hidden; width: 100%; position: relative; }
+
 /* --- STABLE NAV --- */
 .nav-bar {
   position: fixed; top: 0; width: 100%; height: 75px;
@@ -261,7 +263,7 @@ textarea { min-height: 120px; padding: 16px; font-size: 14px; line-height: 1.5; 
   .tech-card { padding: 30px 20px; }
   
   .f-row { flex-direction: column; gap: 12px; align-items: center; text-align: center; }
-  .epic-splash h1 { font-size: 32px; }
+  .epic-splash h1 { font-size: 28px; letter-spacing: 0.15em; text-indent: 0.15em; }
 }
 
 @media (max-width: 480px) {
@@ -270,5 +272,6 @@ textarea { min-height: 120px; padding: 16px; font-size: 14px; line-height: 1.5; 
   .logo-group span { font-size: 16px; }
   .status { font-size: 9px; }
   .input-group-modern label { font-size: 9px; }
+  .epic-splash h1 { font-size: 22px; letter-spacing: 0.1em; text-indent: 0.1em; }
 }
 
