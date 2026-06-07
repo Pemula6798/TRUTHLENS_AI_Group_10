@@ -190,7 +190,7 @@ const App: React.FC = () => {
           <div className="container">
             <motion.div className="section-title" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
               <h2>Verification Engine</h2>
-              <p>Analyze articles to verify fake_real and content ai_human</p>
+              <p>Analyze articles to verify veracity and content origin</p>
             </motion.div>
 
             <div className="verify-grid">
