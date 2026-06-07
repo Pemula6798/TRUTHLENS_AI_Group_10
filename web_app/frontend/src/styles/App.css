@@ -117,11 +117,10 @@ textarea { min-height: 120px; padding: 16px; font-size: 14px; line-height: 1.5; 
 .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 /* --- UNIFIED RESULTS --- */
-.result-box { position: relative; height: 100%; width: 100%; }
-.result-display { display: flex; flex-direction: column; gap: 16px; height: 100%; }
+.result-box { position: relative; height: 100%; width: 100%; display: flex; flex-direction: column; }
+.result-display { display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; }
 
 .res-item { 
-  flex: 1; 
   background: rgba(255,255,255,0.05); 
   border: 1px solid var(--e-border); 
   border-radius: 20px; 
@@ -233,5 +232,45 @@ textarea { min-height: 120px; padding: 16px; font-size: 14px; line-height: 1.5; 
 .retry-btn:hover {
   background: #fb7185;
   color: #000;
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (max-width: 768px) {
+  .full-page { padding: 100px 16px 60px; }
+  
+  .hero-section h1 { font-size: 40px; margin-bottom: 16px; }
+  .hero-section p { font-size: 16px; padding: 0 10px; margin-bottom: 30px; }
+  
+  .hero-btns { flex-direction: column; gap: 12px; }
+  .btn-main, .btn-ghost { width: 100%; justify-content: center; }
+  
+  .section-title { margin-bottom: 40px; }
+  .section-title h2 { font-size: 32px; }
+  .section-title p { font-size: 16px; }
+  
+  .verify-grid { gap: 16px; }
+  .input-box { padding: 20px; }
+  
+  .res-item { padding: 20px; }
+  .res-row { flex-direction: column; text-align: center; gap: 12px; }
+  .res-tag-badge { position: static; margin-bottom: 10px; text-align: center; display: block; }
+  .res-info h3 { font-size: 20px; }
+  
+  .analysis-card { padding: 20px; }
+  .analysis-card h3 { font-size: 20px; }
+  .analysis-card p { font-size: 14px; }
+  
+  .tech-card { padding: 30px 20px; }
+  
+  .f-row { flex-direction: column; gap: 12px; align-items: center; text-align: center; }
+  .epic-splash h1 { font-size: 32px; }
+}
+
+@media (max-width: 480px) {
+  .hero-section h1 { font-size: 32px; }
+  .nav-container { padding: 0 16px; }
+  .logo-group span { font-size: 16px; }
+  .status { font-size: 9px; }
+  .input-group-modern label { font-size: 9px; }
 }
 
