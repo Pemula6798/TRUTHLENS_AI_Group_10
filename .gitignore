@@ -38,3 +38,7 @@ env/
 .venv/
 .vscode/
 .idea/
+
+# Allow notebooks and final dataset in the AI model workspace
+!ai_model/notebooks/*.ipynb
+!ai_model/datasets/final_dataset.csv
